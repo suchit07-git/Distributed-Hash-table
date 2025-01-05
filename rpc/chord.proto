@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/suchit07-git/chordkv/rpc";
+
+service ChordService {
+    rpc FindSuccessor(FindSuccessorRequest) returns (Node);
+    rpc Notify(Node) returns (google.protobuf.Empty);
+    rpc Put(PutRequest) returns (PutResponse);
+    rpc Get(GetRequest) returns (GetResponse);
+    rpc Delete(GetRequest) returns (google.protobuf.Empty);
+    rpc TransferKeys(TransferRequest) returns (google.protobuf.Empty);
+}
+
+message FindSuccessorRequest {
+    int64 id = 1;
+}
+
+message Node {
+    int64 id = 1;
+    string address = 2;
+    int32 port = 3;
+}
+
+message PutRequest {
+    string key = 1;
+    string value = 2;
+}
+
+message PutResponse {
+    bool success = 1;
+}
+
+message GetRequest {
+    string key = 1;
+}
+
+message GetResponse {
+    string value = 1;
+}
+
+message TransferRequest {
+    repeated PutRequest values = 1;
+}
