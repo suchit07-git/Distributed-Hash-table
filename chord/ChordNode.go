@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"log"
 	"math/big"
+	"strconv"
 	"time"
 
 	pb "github.com/suchit07-git/chordkv/rpc"
@@ -26,12 +27,26 @@ type ChordNode struct {
 	kvstore     map[string]string
 }
 
+func NewChordNode(address string, port int32) *ChordNode {
+	node := &ChordNode{
+		id:          -1,
+		address:     address,
+		port:        port,
+		fingerTable: make(map[int]*ChordNode),
+		predecessor: nil,
+		successor:   nil,
+		kvstore:     make(map[string]string),
+	}
+	node.id = Sha1Hash(address + ":" + strconv.Itoa(int(port)))
+	return node
+}
+
 func (node *ChordNode) FindSuccessor(id int64) *ChordNode {
 	if id >= node.id && id <= node.successor.id {
 		return node.successor
 	}
 	closestNode := node.ClosestPrecedingNode(id)
-	address := closestNode.address + ":" + string(closestNode.port)
+	address := closestNode.address + ":" + strconv.Itoa(int(closestNode.port))
 	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to connect to node: %v", err)
@@ -86,7 +101,7 @@ func (node *ChordNode) Retrieve(key string) string {
 	if responsibleNode.id == node.id {
 		return node.kvstore[key]
 	}
-	address := responsibleNode.address + ":" + string(responsibleNode.port)
+	address := responsibleNode.address + ":" + strconv.Itoa(int(responsibleNode.port))
 	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to connect to node: %v", err)
@@ -113,7 +128,7 @@ func (node *ChordNode) Delete(key string) bool {
 		}
 		delete(node.kvstore, key)
 	}
-	address := responsibleNode.address + ":" + string(responsibleNode.port)
+	address := responsibleNode.address + ":" + strconv.Itoa(int(responsibleNode.port))
 	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to connect to node: %v", err)
@@ -131,7 +146,7 @@ func (node *ChordNode) Delete(key string) bool {
 
 func (node *ChordNode) Join(bootstrapNode *ChordNode) {
 	if bootstrapNode != nil {
-		address := bootstrapNode.address + ":" + string(bootstrapNode.port)
+		address := bootstrapNode.address + ":" + strconv.Itoa(int(bootstrapNode.port))
 		conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			log.Fatalf("Failed to connect to node: %v", err)
@@ -160,7 +175,7 @@ func (node *ChordNode) FixFingers() {
 
 func (node *ChordNode) Stabilize() {
 	if node.successor != nil {
-		address := node.successor.address + ":" + string(node.successor.port)
+		address := node.successor.address + ":" + strconv.Itoa(int(node.successor.port))
 		conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			log.Printf("Failed to connect to successor: %v", err)
@@ -189,7 +204,7 @@ func (node *ChordNode) Stabilize() {
 	}
 }
 
-func (node *ChordNode) runBackgroundTasks() {
+func (node *ChordNode) RunBackgroundTasks() {
 	for {
 		node.Stabilize()
 		node.FixFingers()

@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
 
 	. "github.com/suchit07-git/chordkv/chord"
 	pb "github.com/suchit07-git/chordkv/rpc"
@@ -28,10 +29,10 @@ func NewChordClient(address string) *ChordClient {
 	return &ChordClient{address: address, stub: stub}
 }
 
-func (client *ChordClient) storeKeyValuePair(key string, value string) {
+func (client *ChordClient) StoreKeyValuePair(key string, value string) {
 	hash := Sha1Hash(key)
 	responsibleNode := client.FindSuccessor(hash)
-	address := responsibleNode.Address + ":" + string(responsibleNode.Port)
+	address := responsibleNode.Address + ":" + strconv.Itoa(int(responsibleNode.Port))
 	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to connect to responsible node: %v", err)
@@ -92,7 +93,7 @@ func (client *ChordClient) GetPredecessor() *pb.Node {
 	return response
 }
 
-func main() {
+func Main() {
 	if len(os.Args) < 3 {
 		panic("Usage: go run main.go <address> <port> <operation> [key] [value]")
 	}
@@ -107,7 +108,7 @@ func main() {
 			panic("Usage: go run main.go <address> <port> store <key> <value>")
 		}
 		key, value := os.Args[4], os.Args[5]
-		client.storeKeyValuePair(key, value)
+		client.StoreKeyValuePair(key, value)
 
 	case "retrieve":
 		if len(os.Args) < 5 {

@@ -15,6 +15,10 @@ type ChordServiceServer struct {
 	node *ChordNode
 }
 
+func NewChordServiceImpl(node *ChordNode) *ChordServiceServer {
+	return &ChordServiceServer{node: node}
+}
+
 func (s *ChordServiceServer) FindSuccessor(ctx context.Context, req *pb.FindSuccessorRequest) (*pb.Node, error) {
 	successor := s.node.FindSuccessor(req.Id)
 	return &pb.Node{Id: successor.id, Address: successor.address, Port: successor.port}, nil
