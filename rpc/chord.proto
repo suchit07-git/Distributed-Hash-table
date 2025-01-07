@@ -11,6 +11,7 @@ service ChordService {
     rpc Get(GetRequest) returns (GetResponse);
     rpc Delete(GetRequest) returns (google.protobuf.Empty);
     rpc TransferKeys(TransferRequest) returns (google.protobuf.Empty);
+    rpc GetPredecessor(google.protobuf.Empty) returns (Node);
 }
 
 message FindSuccessorRequest {

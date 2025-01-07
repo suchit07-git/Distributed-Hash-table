@@ -11,6 +11,7 @@ import (
 	pb "github.com/suchit07-git/chordkv/rpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 const nBits = 32
@@ -124,5 +125,43 @@ func (node *ChordNode) Join(bootstrapNode *ChordNode) {
 func (node *ChordNode) FixFingers() {
 	for i := 0; i < nBits; i++ {
 		node.fingerTable[i] = node.FindSuccessor((node.id + (1 << i)) % (1 << nBits))
+	}
+}
+
+func (node *ChordNode) Stabilize() {
+	if node.successor != nil {
+		conn, err := grpc.NewClient(node.successor.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Printf("Failed to connect to successor: %v", err)
+			return
+		}
+		defer conn.Close()
+		client := pb.NewChordServiceClient(conn)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		response, err := client.GetPredecessor(ctx, &emptypb.Empty{})
+		if err != nil {
+			log.Printf("Couldn't get predecessor: %v", err)
+			return
+		}
+		var x *ChordNode
+		if response.Id != -1 {
+			x = &ChordNode{id: response.Id, address: response.Address, port: response.Port}
+		}
+		if x != nil && (x.id >= node.id && x.id <= node.successor.id) {
+			node.successor = x
+		}
+		_, err = client.Notify(ctx, &pb.Node{Id: node.id, Address: node.address, Port: node.port})
+		if err != nil {
+			log.Printf("Couldn't notify successor: %v", err)
+		}
+	}
+}
+
+func (node *ChordNode) runBackgroundTasks() {
+	for {
+		node.Stabilize()
+		node.FixFingers()
+		time.Sleep(time.Second)
 	}
 }

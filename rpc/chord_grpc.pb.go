@@ -20,12 +20,13 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ChordService_FindSuccessor_FullMethodName = "/ChordService/FindSuccessor"
-	ChordService_Notify_FullMethodName        = "/ChordService/Notify"
-	ChordService_Put_FullMethodName           = "/ChordService/Put"
-	ChordService_Get_FullMethodName           = "/ChordService/Get"
-	ChordService_Delete_FullMethodName        = "/ChordService/Delete"
-	ChordService_TransferKeys_FullMethodName  = "/ChordService/TransferKeys"
+	ChordService_FindSuccessor_FullMethodName  = "/ChordService/FindSuccessor"
+	ChordService_Notify_FullMethodName         = "/ChordService/Notify"
+	ChordService_Put_FullMethodName            = "/ChordService/Put"
+	ChordService_Get_FullMethodName            = "/ChordService/Get"
+	ChordService_Delete_FullMethodName         = "/ChordService/Delete"
+	ChordService_TransferKeys_FullMethodName   = "/ChordService/TransferKeys"
+	ChordService_GetPredecessor_FullMethodName = "/ChordService/GetPredecessor"
 )
 
 // ChordServiceClient is the client API for ChordService service.
@@ -38,6 +39,7 @@ type ChordServiceClient interface {
 	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
 	Delete(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	TransferKeys(ctx context.Context, in *TransferRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	GetPredecessor(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Node, error)
 }
 
 type chordServiceClient struct {
@@ -108,6 +110,16 @@ func (c *chordServiceClient) TransferKeys(ctx context.Context, in *TransferReque
 	return out, nil
 }
 
+func (c *chordServiceClient) GetPredecessor(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Node, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Node)
+	err := c.cc.Invoke(ctx, ChordService_GetPredecessor_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ChordServiceServer is the server API for ChordService service.
 // All implementations must embed UnimplementedChordServiceServer
 // for forward compatibility.
@@ -118,6 +130,7 @@ type ChordServiceServer interface {
 	Get(context.Context, *GetRequest) (*GetResponse, error)
 	Delete(context.Context, *GetRequest) (*emptypb.Empty, error)
 	TransferKeys(context.Context, *TransferRequest) (*emptypb.Empty, error)
+	GetPredecessor(context.Context, *emptypb.Empty) (*Node, error)
 	mustEmbedUnimplementedChordServiceServer()
 }
 
@@ -145,6 +158,9 @@ func (UnimplementedChordServiceServer) Delete(context.Context, *GetRequest) (*em
 }
 func (UnimplementedChordServiceServer) TransferKeys(context.Context, *TransferRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TransferKeys not implemented")
+}
+func (UnimplementedChordServiceServer) GetPredecessor(context.Context, *emptypb.Empty) (*Node, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPredecessor not implemented")
 }
 func (UnimplementedChordServiceServer) mustEmbedUnimplementedChordServiceServer() {}
 func (UnimplementedChordServiceServer) testEmbeddedByValue()                      {}
@@ -275,6 +291,24 @@ func _ChordService_TransferKeys_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ChordService_GetPredecessor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChordServiceServer).GetPredecessor(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ChordService_GetPredecessor_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChordServiceServer).GetPredecessor(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ChordService_ServiceDesc is the grpc.ServiceDesc for ChordService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -305,6 +339,10 @@ var ChordService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "TransferKeys",
 			Handler:    _ChordService_TransferKeys_Handler,
+		},
+		{
+			MethodName: "GetPredecessor",
+			Handler:    _ChordService_GetPredecessor_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
