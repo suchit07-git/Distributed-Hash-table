@@ -100,6 +100,32 @@ func (node *ChordNode) Retrieve(key string) string {
 	return response.Value
 }
 
+func (node *ChordNode) Delete(key string) bool {
+	hash_key := sha1Hash(key)
+	responsibleNode := node.FindSuccessor(hash_key)
+	if responsibleNode.id == node.id {
+		_, exists := node.kvstore[key]
+		if !exists {
+			log.Printf("Key %s not found", key)
+			return false
+		}
+		delete(node.kvstore, key)
+	}
+	conn, err := grpc.NewClient(responsibleNode.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("Failed to connect to node: %v", err)
+	}
+	defer conn.Close()
+	client := pb.NewChordServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, err = client.Delete(ctx, &pb.GetRequest{Key: key})
+	if err != nil {
+		log.Fatalf("Coudn't delete value for key %s: %v", key, err)
+	}
+	return true
+}
+
 func (node *ChordNode) Join(bootstrapNode *ChordNode) {
 	if bootstrapNode != nil {
 		conn, err := grpc.NewClient(bootstrapNode.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
