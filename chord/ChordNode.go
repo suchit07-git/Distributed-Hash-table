@@ -31,7 +31,8 @@ func (node *ChordNode) FindSuccessor(id int64) *ChordNode {
 		return node.successor
 	}
 	closestNode := node.ClosestPrecedingNode(id)
-	conn, err := grpc.NewClient(closestNode.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	address := closestNode.address + ":" + string(closestNode.port)
+	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to connect to node: %v", err)
 	}
@@ -67,7 +68,7 @@ func (node *ChordNode) Store(key string, value string) {
 	node.kvstore[key] = value
 }
 
-func sha1Hash(key string) int64 {
+func Sha1Hash(key string) int64 {
 	hashser := sha1.New()
 	hashser.Write([]byte(key))
 	hashBytes := hashser.Sum(nil)
@@ -80,12 +81,13 @@ func sha1Hash(key string) int64 {
 }
 
 func (node *ChordNode) Retrieve(key string) string {
-	hash_key := sha1Hash(key)
+	hash_key := Sha1Hash(key)
 	responsibleNode := node.FindSuccessor(hash_key)
 	if responsibleNode.id == node.id {
 		return node.kvstore[key]
 	}
-	conn, err := grpc.NewClient(responsibleNode.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	address := responsibleNode.address + ":" + string(responsibleNode.port)
+	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to connect to node: %v", err)
 	}
@@ -101,7 +103,7 @@ func (node *ChordNode) Retrieve(key string) string {
 }
 
 func (node *ChordNode) Delete(key string) bool {
-	hash_key := sha1Hash(key)
+	hash_key := Sha1Hash(key)
 	responsibleNode := node.FindSuccessor(hash_key)
 	if responsibleNode.id == node.id {
 		_, exists := node.kvstore[key]
@@ -111,7 +113,8 @@ func (node *ChordNode) Delete(key string) bool {
 		}
 		delete(node.kvstore, key)
 	}
-	conn, err := grpc.NewClient(responsibleNode.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	address := responsibleNode.address + ":" + string(responsibleNode.port)
+	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to connect to node: %v", err)
 	}
@@ -128,7 +131,8 @@ func (node *ChordNode) Delete(key string) bool {
 
 func (node *ChordNode) Join(bootstrapNode *ChordNode) {
 	if bootstrapNode != nil {
-		conn, err := grpc.NewClient(bootstrapNode.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		address := bootstrapNode.address + ":" + string(bootstrapNode.port)
+		conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			log.Fatalf("Failed to connect to node: %v", err)
 		}
@@ -156,7 +160,8 @@ func (node *ChordNode) FixFingers() {
 
 func (node *ChordNode) Stabilize() {
 	if node.successor != nil {
-		conn, err := grpc.NewClient(node.successor.address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		address := node.successor.address + ":" + string(node.successor.port)
+		conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			log.Printf("Failed to connect to successor: %v", err)
 			return
