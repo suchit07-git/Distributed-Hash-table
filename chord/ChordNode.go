@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/big"
 	"strconv"
+	"sync"
 	"time"
 
 	pb "github.com/suchit07-git/chordkv/rpc"
@@ -37,6 +38,7 @@ func NewChordNode(address string, port int32) *ChordNode {
 		successor:   nil,
 		kvstore:     make(map[string]string),
 	}
+	node.successor = node
 	node.id = Sha1Hash(address + ":" + strconv.Itoa(int(port)))
 	return node
 }
@@ -46,6 +48,9 @@ func (node *ChordNode) FindSuccessor(id int64) *ChordNode {
 		return node.successor
 	}
 	closestNode := node.ClosestPrecedingNode(id)
+	if closestNode == node {
+		return node.successor
+	}
 	address := closestNode.address + ":" + strconv.Itoa(int(closestNode.port))
 	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -57,7 +62,7 @@ func (node *ChordNode) FindSuccessor(id int64) *ChordNode {
 	defer cancel()
 	response, err := client.FindSuccessor(ctx, &pb.FindSuccessorRequest{Id: id})
 	if err != nil {
-		log.Fatalf("Couldn't find successor: %v", err)
+		log.Printf("Couldn't find successor (inside ChordNode.FindSuccessor()): %v", err)
 	}
 	return &ChordNode{id: response.Id, address: response.Address, port: response.Port}
 }
@@ -112,7 +117,10 @@ func (node *ChordNode) Retrieve(key string) string {
 	defer cancel()
 	response, err := client.Get(ctx, &pb.GetRequest{Key: key})
 	if err != nil {
-		log.Fatalf("Coudn't retrieve value for key %s: %v", key, err)
+		log.Printf("Coudn't retrieve value for key %s: %v", key, err)
+	}
+	if response == nil {
+		return ""
 	}
 	return response.Value
 }
@@ -157,7 +165,7 @@ func (node *ChordNode) Join(bootstrapNode *ChordNode) {
 		defer cancel()
 		response, err := client.FindSuccessor(ctx, &pb.FindSuccessorRequest{Id: node.id})
 		if err != nil {
-			log.Fatalf("Couldn't find successor: %v", err)
+			log.Fatalf("Couldn't find successor (inside ChordNode.Join()): %v", err)
 		}
 		node.successor = &ChordNode{id: response.Id, address: response.Address, port: response.Port}
 		node.FixFingers()
@@ -190,11 +198,11 @@ func (node *ChordNode) Stabilize() {
 			log.Printf("Couldn't get predecessor: %v", err)
 			return
 		}
-		var x *ChordNode
+		var x *ChordNode = nil
 		if response.Id != -1 {
 			x = &ChordNode{id: response.Id, address: response.Address, port: response.Port}
 		}
-		if x != nil && (x.id >= node.id && x.id <= node.successor.id) {
+		if x != nil && (x.id > node.id && x.id < node.successor.id) {
 			node.successor = x
 		}
 		_, err = client.Notify(ctx, &pb.Node{Id: node.id, Address: node.address, Port: node.port})
@@ -204,10 +212,11 @@ func (node *ChordNode) Stabilize() {
 	}
 }
 
-func (node *ChordNode) RunBackgroundTasks() {
+func (node *ChordNode) RunBackgroundTasks(wg *sync.WaitGroup) {
+	defer wg.Done()
 	for {
 		node.Stabilize()
 		node.FixFingers()
-		time.Sleep(time.Second)
+		time.Sleep(10 * time.Second)
 	}
 }

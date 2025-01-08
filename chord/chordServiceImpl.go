@@ -29,7 +29,7 @@ func (s *ChordServiceServer) GetPredecessor(ctx context.Context, req *emptypb.Em
 	if predecessor != nil {
 		return &pb.Node{Id: predecessor.id, Address: predecessor.address, Port: predecessor.port}, nil
 	}
-	return &pb.Node{Id: -1, Address: "", Port: -1}, errors.New("No predecessor found")
+	return &pb.Node{Id: -1, Address: "", Port: -1}, errors.New("no predecessor found")
 }
 
 func (s *ChordServiceServer) Notify(ctx context.Context, req *pb.Node) (*emptypb.Empty, error) {
@@ -41,7 +41,7 @@ func (s *ChordServiceServer) Get(ctx context.Context, req *pb.GetRequest) (*pb.G
 	log.Printf("Get Request for key: %s", req.Key)
 	value := s.node.Retrieve(req.Key)
 	if value == "" {
-		return &pb.GetResponse{Value: ""}, errors.New("Key not found")
+		return &pb.GetResponse{Value: ""}, errors.New("key not found")
 	}
 	fmt.Printf("Retrieved value for key %s: %s\n", req.Key, value)
 	return &pb.GetResponse{Value: value}, nil
@@ -57,7 +57,7 @@ func (s *ChordServiceServer) Delete(ctx context.Context, req *pb.GetRequest) (*e
 	log.Printf("Delete Request for key: %s", req.Key)
 	exists := s.node.Delete(req.Key)
 	if !exists {
-		return &emptypb.Empty{}, errors.New("Key doesn't exist")
+		return &emptypb.Empty{}, errors.New("key doesn't exist")
 	}
 	return &emptypb.Empty{}, nil
 }

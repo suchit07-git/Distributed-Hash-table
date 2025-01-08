@@ -41,7 +41,7 @@ func (client *ChordClient) StoreKeyValuePair(key string, value string) {
 	stub := pb.NewChordServiceClient(conn)
 	ok, err := stub.Put(context.Background(), &pb.PutRequest{Key: key, Value: value})
 	if err != nil || !ok.Success {
-		log.Fatalf("Failed to store key-value pair: %v", err)
+		log.Printf("Failed to store key-value pair: %v", err)
 	}
 	fmt.Printf("Stored key %s pair successfully at node %d\f", key, responsibleNode.Id)
 }
@@ -57,7 +57,10 @@ func (client *ChordClient) FindSuccessor(id int64) *pb.Node {
 func (client *ChordClient) Retrieve(key string) {
 	response, err := client.stub.Get(context.Background(), &pb.GetRequest{Key: key})
 	if err != nil {
-		log.Fatalf("Failed to retrieve key: %v", err)
+		log.Printf("Failed to retrieve key: %v", err)
+	}
+	if response == nil {
+		return
 	}
 	if response.Value == "" {
 		fmt.Printf("Key %s not found\n", key)
@@ -69,7 +72,7 @@ func (client *ChordClient) Retrieve(key string) {
 func (client *ChordClient) DeleteKey(key string) {
 	response, err := client.stub.Delete(context.Background(), &pb.GetRequest{Key: key})
 	if err != nil {
-		log.Fatalf("Failed to delete key: %v", err)
+		log.Printf("Failed to delete key: %v", err)
 	}
 	if response == nil {
 		fmt.Printf("Key %s not found\n", key)
@@ -88,7 +91,7 @@ func (client *ChordClient) Notify(id int64, address string) {
 func (client *ChordClient) GetPredecessor() *pb.Node {
 	response, err := client.stub.GetPredecessor(context.Background(), &emptypb.Empty{})
 	if err != nil {
-		log.Fatalf("Failed to get predecessor: %v", err)
+		log.Printf("Failed to get predecessor: %v", err)
 	}
 	return response
 }

@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"net"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	. "github.com/suchit07-git/chordkv/chord"
 	. "github.com/suchit07-git/chordkv/client"
@@ -23,6 +25,65 @@ func getIpAddress() string {
 
 	ipAddress := conn.LocalAddr().(*net.UDPAddr).IP
 	return ipAddress.String()
+}
+
+func serve(node *ChordNode, address string, port int) {
+	server := grpc.NewServer()
+	pb.RegisterChordServiceServer(server, NewChordServiceImpl(node))
+	listener, err := net.Listen("tcp", address+":"+strconv.Itoa(port))
+	if err != nil {
+		log.Fatalf("Failed to listen on port %d: %v", port, err)
+	}
+	log.Printf("Server started on %s:%d\n", address, port)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go node.RunBackgroundTasks(&wg)
+	wg.Add(1)
+	go GetInput(node, &wg, address, port)
+	if err := server.Serve(listener); err != nil {
+		log.Fatalf("Failed to serve: %v", err)
+	}
+	wg.Wait()
+	server.Stop()
+}
+
+func GetInput(node *ChordNode, wg *sync.WaitGroup, address string, port int) {
+	defer wg.Done()
+	client := NewChordClient(address + ":" + strconv.Itoa(port))
+	scanner := bufio.NewScanner(os.Stdin)
+	for {
+		fmt.Println("Commands:")
+		fmt.Println("- store <key> <value>")
+		fmt.Println("- retrieve <key>")
+		fmt.Println("- delete <key>")
+		fmt.Println("- exit")
+		scanner.Scan()
+		command := scanner.Text()
+		if strings.HasPrefix(command, "store") {
+			fmt.Println("Enter the key:")
+			scanner.Scan()
+			key := scanner.Text()
+			fmt.Println("Enter the value:")
+			scanner.Scan()
+			value := scanner.Text()
+			client.StoreKeyValuePair(key, value)
+		} else if strings.HasPrefix(command, "retrieve") {
+			fmt.Print("Enter the key: ")
+			scanner.Scan()
+			key := scanner.Text()
+			client.Retrieve(key)
+		} else if strings.HasPrefix(command, "delete") {
+			fmt.Print("Enter the key: ")
+			scanner.Scan()
+			key := scanner.Text()
+			client.DeleteKey(key)
+		} else if strings.HasPrefix(command, "exit") {
+			log.Printf("Exiting...")
+			os.Exit(0)
+		} else {
+			fmt.Println("Invalid command. Please try again.")
+		}
+	}
 }
 
 func main() {
@@ -44,41 +105,5 @@ func main() {
 	if address != bootstrapAddress || port != bootstrapPort {
 		node.Join(bootstrapNode)
 	}
-	listener, err := net.Listen("tcp", address+":"+strconv.Itoa(port))
-	if err != nil {
-		log.Fatalf("Failed to listen on port %d: %v", port, err)
-	}
-	server := grpc.NewServer()
-	pb.RegisterChordServiceServer(server, NewChordServiceImpl(node))
-	log.Printf("Server started on %s:%d\n", address, port)
-	if err := server.Serve(listener); err != nil {
-		log.Fatalf("Failed to serve: %v", err)
-	}
-	go node.RunBackgroundTasks()
-	client := NewChordClient(address + ":" + strconv.Itoa(port))
-	for {
-		fmt.Println("Commands:")
-		fmt.Println("- store <key> <value>")
-		fmt.Println("- retrieve <key>")
-		fmt.Println("- delete <key>")
-		fmt.Println("- exit")
-		var command string
-		if strings.HasPrefix(command, "store") {
-			var key, value string
-			fmt.Sscanf(command, "store %s %s", &key, &value)
-			client.StoreKeyValuePair(key, value)
-		} else if strings.HasPrefix(command, "retrieve") {
-			var key string
-			fmt.Scan(&key)
-			client.Retrieve(key)
-		} else if strings.HasPrefix(command, "delete") {
-			var key string
-			fmt.Scan(&key)
-			client.DeleteKey(key)
-		} else if strings.HasPrefix(command, "exit") {
-			log.Printf("Exiting...")
-		} else {
-			fmt.Println("Invalid command. Please try again.")
-		}
-	}
+	serve(node, address, port)
 }
