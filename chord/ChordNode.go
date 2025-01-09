@@ -44,7 +44,7 @@ func NewChordNode(address string, port int32) *ChordNode {
 }
 
 func (node *ChordNode) FindSuccessor(id int64) *ChordNode {
-	if id >= node.id && id <= node.successor.id {
+	if node.successor != nil && id >= node.id && id <= node.successor.id {
 		return node.successor
 	}
 	closestNode := node.ClosestPrecedingNode(id)
@@ -117,7 +117,7 @@ func (node *ChordNode) Retrieve(key string) string {
 	defer cancel()
 	response, err := client.Get(ctx, &pb.GetRequest{Key: key})
 	if err != nil {
-		log.Printf("Coudn't retrieve value for key %s: %v", key, err)
+		log.Printf("Couldn't retrieve value for key %s: %v", key, err)
 	}
 	if response == nil {
 		return ""
@@ -147,7 +147,7 @@ func (node *ChordNode) Delete(key string) bool {
 	defer cancel()
 	_, err = client.Delete(ctx, &pb.GetRequest{Key: key})
 	if err != nil {
-		log.Fatalf("Coudn't delete value for key %s: %v", key, err)
+		log.Printf("Couldn't delete value for key %s: %v", key, err)
 	}
 	return true
 }
@@ -165,7 +165,7 @@ func (node *ChordNode) Join(bootstrapNode *ChordNode) {
 		defer cancel()
 		response, err := client.FindSuccessor(ctx, &pb.FindSuccessorRequest{Id: node.id})
 		if err != nil {
-			log.Fatalf("Couldn't find successor (inside ChordNode.Join()): %v", err)
+			log.Printf("Couldn't find successor (inside ChordNode.Join()): %v", err)
 		}
 		node.successor = &ChordNode{id: response.Id, address: response.Address, port: response.Port}
 		node.FixFingers()
